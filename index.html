@@ -1,0 +1,868 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ruleta de Geografía: Argentina y Jujuy</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Canvas Confetti -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <style>
+        body {
+            font-family: 'Poppins', sans-serif;
+        }
+        
+        .wheel-container {
+            position: relative;
+            filter: drop-shadow(0 15px 25px rgba(0, 0, 0, 0.25));
+            width: 100%;
+            max-width: 360px;
+            aspect-ratio: 1 / 1;
+            margin: 0 auto;
+        }
+
+        .pointer {
+            position: absolute;
+            top: -14px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 30;
+            width: 0;
+            height: 0;
+            border-left: 16px solid transparent;
+            border-right: 16px solid transparent;
+            border-top: 32px solid #f43f5e;
+            filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.4));
+        }
+
+        .pointer::after {
+            content: '';
+            position: absolute;
+            top: -34px;
+            left: -7px;
+            width: 14px;
+            height: 14px;
+            background-color: #be123c;
+            border-radius: 50%;
+        }
+
+        #wheelCanvas {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            display: block;
+        }
+
+        .glass-card {
+            background: rgba(255, 255, 255, 0.96);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.4);
+        }
+
+        .option-btn {
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .option-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+
+        .option-btn:active:not(:disabled) {
+            transform: translateY(0);
+        }
+
+        /* Custom Scrollbar for hints & explanations */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.05);
+            border-radius: 8px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(99, 102, 241, 0.4);
+            border-radius: 8px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(99, 102, 241, 0.7);
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-slate-900 via-indigo-950 to-blue-900 min-h-screen text-slate-800 py-6 px-4 flex flex-col justify-between items-center selection:bg-indigo-500 selection:text-white">
+
+    <!-- Header & Score Section -->
+    <header class="w-full max-w-3xl text-center mb-4">
+        <div class="inline-block bg-indigo-500/20 text-indigo-300 border border-indigo-400/30 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest mb-2 shadow-sm">
+            🗺️ Cuestionario Interactivo
+        </div>
+        <h1 class="text-2xl md:text-4xl font-black text-white tracking-tight drop-shadow-md mb-2">
+            Ruleta de Geografía: Argentina y Jujuy
+        </h1>
+        <p class="text-indigo-200 text-xs md:text-sm mb-4 font-medium max-w-xl mx-auto">
+            Gira la ruleta para poner a prueba tus conocimientos sobre ecorregiones, relieve, límites y actividades de la región.
+        </p>
+
+        <!-- Stats Bar -->
+        <div class="flex flex-row justify-center items-center gap-3 max-w-xl mx-auto">
+            <!-- Questions Answered Stat -->
+            <div class="bg-white/10 backdrop-blur-md rounded-2xl px-4 py-2 text-white border border-white/10 shadow-lg flex-1">
+                <span class="text-[10px] uppercase font-bold tracking-wider text-indigo-200 block">Respondidas</span>
+                <span id="answeredDisplay" class="text-lg md:text-xl font-black text-white">0 / 10</span>
+            </div>
+
+            <!-- Accuracy Percentage (Calculated ONLY on answered questions) -->
+            <div class="bg-white/10 backdrop-blur-md rounded-2xl px-4 py-2 text-white border border-white/10 shadow-lg flex-1">
+                <span class="text-[10px] uppercase font-bold tracking-wider text-indigo-200 block">Porcentaje de Aciertos</span>
+                <span id="accuracyDisplay" class="text-lg md:text-xl font-black text-amber-300">0%</span>
+            </div>
+
+            <!-- Restart Button -->
+            <button onclick="requestRestart()" title="Reiniciar el juego" class="bg-rose-500/80 hover:bg-rose-600 text-white font-bold px-4 py-3 rounded-2xl border border-rose-300/30 shadow-lg hover:scale-105 active:scale-95 transition-all text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 self-stretch">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                </svg>
+                <span class="hidden sm:inline">Reiniciar</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Game Area -->
+    <main class="w-full max-w-3xl flex flex-col items-center gap-6 my-auto">
+
+        <!-- Roulette Wheel Block -->
+        <div class="flex flex-col items-center w-full">
+            <div class="wheel-container mb-4 p-2 rounded-full bg-white/10 backdrop-blur-md border border-white/20 shadow-2xl">
+                <!-- Roulette Pointer -->
+                <div class="pointer"></div>
+                <!-- Canvas Element for Wheel -->
+                <canvas id="wheelCanvas"></canvas>
+            </div>
+
+            <!-- Spin Button -->
+            <button id="spinBtn" onclick="spinWheel()" class="w-60 py-3 px-6 bg-gradient-to-r from-amber-400 via-orange-500 to-amber-500 hover:from-amber-300 hover:to-orange-400 text-slate-950 font-black text-base md:text-lg rounded-full shadow-xl hover:shadow-2xl hover:scale-105 active:scale-95 transition-all duration-200 border-2 border-amber-200 flex items-center justify-center gap-2 tracking-wide">
+                <span>¡GIRAR RULETA!</span>
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                </svg>
+            </button>
+        </div>
+
+        <!-- Question Section Card -->
+        <div id="questionCard" class="w-full glass-card rounded-3xl p-5 md:p-7 shadow-2xl transition-all duration-300 min-h-[320px] flex flex-col justify-between border border-white/40">
+            
+            <!-- Default Welcome State -->
+            <div id="welcomeState" class="text-center my-auto py-6">
+                <div class="text-5xl mb-3">📍</div>
+                <h3 class="text-2xl font-black text-slate-800 mb-2">¡Todo listo para aprender!</h3>
+                <p class="text-slate-600 text-sm max-w-md mx-auto font-medium">
+                    Haz clic en <strong class="text-amber-600 font-bold">"¡GIRAR RULETA!"</strong> para elegir una de las 10 preguntas sobre la Geografía de Argentina y Jujuy.
+                </p>
+            </div>
+
+            <!-- Active Question Content -->
+            <div id="activeQuestionState" class="hidden flex-col h-full justify-between gap-4">
+                <!-- Header of Question Card -->
+                <div class="flex items-center justify-between border-b border-slate-200/80 pb-3">
+                    <span id="sectionBadge" class="px-3.5 py-1 rounded-full text-xs font-black uppercase tracking-wider text-white shadow-sm">
+                        Pregunta 1
+                    </span>
+                    <button id="hintBtn" onclick="toggleHint()" class="text-xs font-bold text-amber-700 bg-amber-100 hover:bg-amber-200 border border-amber-300 px-3 py-1 rounded-full flex items-center gap-1 transition-colors">
+                        💡 Ver Pista
+                    </button>
+                </div>
+
+                <!-- Hint Box (Initially Hidden) -->
+                <div id="hintBox" class="hidden bg-amber-50/90 border border-amber-200 text-amber-900 rounded-2xl p-3 text-xs md:text-sm font-medium">
+                    <span class="font-bold">💡 Pista:</span> <span id="hintText"></span>
+                </div>
+
+                <!-- Question Text -->
+                <h2 id="questionText" class="text-base md:text-lg font-bold text-slate-800 leading-relaxed my-1">
+                    ¿Pregunta?
+                </h2>
+
+                <!-- Options List -->
+                <div id="optionsContainer" class="grid grid-cols-1 md:grid-cols-2 gap-2.5 my-1">
+                    <!-- Buttons generated dynamically -->
+                </div>
+
+                <!-- Explanation Box (Shown after answering) -->
+                <div id="explanationBox" class="hidden bg-indigo-50 border border-indigo-200 text-indigo-950 rounded-2xl p-3 text-xs md:text-sm font-medium">
+                    <span class="font-bold">✓ Explicación:</span> <span id="explanationText"></span>
+                </div>
+
+                <!-- Next Action Indicator -->
+                <div id="nextPrompt" class="text-center text-xs font-semibold text-slate-500 min-h-[18px]">
+                    Elige la respuesta que consideres correcta.
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Modal for Performance Report before Restart or End -->
+    <div id="restartModal" class="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-3xl p-6 md:p-8 max-w-md w-full shadow-2xl border border-white/20 text-center transform transition-all scale-100">
+            <div id="modalIcon" class="text-5xl mb-3">📊</div>
+            <h3 id="modalTitle" class="text-2xl font-black text-slate-800 mb-2">Estado del Juego</h3>
+            
+            <div class="bg-indigo-50 border border-indigo-100 rounded-2xl p-4 my-4">
+                <span class="text-xs font-extrabold uppercase tracking-widest text-indigo-500 block mb-1">
+                    Porcentaje de Aciertos
+                </span>
+                <span id="modalPercentage" class="text-4xl font-black text-indigo-600">0%</span>
+                <span id="modalDetail" class="text-xs text-slate-500 block mt-1 font-semibold">(0 aciertos de 0 respondidas)</span>
+            </div>
+
+            <p id="modalMessage" class="text-slate-700 text-sm font-medium mb-6 leading-relaxed">
+                Mensaje de retroalimentación...
+            </p>
+
+            <div class="flex gap-3 justify-center">
+                <button id="modalCancelBtn" onclick="closeRestartModal()" class="py-2.5 px-5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs uppercase tracking-wider transition-all">
+                    Cancelar
+                </button>
+                <button id="modalConfirmBtn" onclick="confirmRestart()" class="py-2.5 px-6 bg-rose-500 hover:bg-rose-600 text-white font-bold rounded-xl text-xs uppercase tracking-wider shadow-md transition-all">
+                    Reiniciar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="mt-6 text-center text-xs font-medium text-indigo-200/70">
+        Geografía de Argentina y Jujuy &bull; Cuestionario Educativo Interactivo
+    </footer>
+
+    <!-- JavaScript Logic -->
+    <script>
+        // 10 Specific Questions from Document
+        const questions = [
+            {
+                number: 1,
+                category: "Geografía General",
+                color: "#EF4444", // Red
+                question: "¿Qué es una región geográfica y cuáles son sus criterios de delimitación?",
+                options: [
+                    "a) Una división política fija creada únicamente por tratados internacionales.",
+                    "b) Una porción de la superficie terrestre con homogeneidad física, humana o socioeconómica, delimitada por diversos criterios.",
+                    "c) Un área delimitada exclusivamente por sus fronteras provinciales y municipales.",
+                    "d) Una zona urbana definida únicamente por su densidad de población."
+                ],
+                correct: 1,
+                hint: "Pensá en un área que comparte características similares como el clima, el relieve o las actividades humanas.",
+                explanation: "Una región geográfica es un espacio con coherencia interna delimitado por criterios físicos, políticos, ecorregionales o socioeconómicos."
+            },
+            {
+                number: 2,
+                category: "Regiones Tradicionales",
+                color: "#F97316", // Orange
+                question: "¿Cuáles son las 6 regiones de la clasificación tradicional escolar argentina y en cuál se ubica Jujuy?",
+                options: [
+                    "a) Centro, Litoral, Norte Grande, Cuyo, Patagonia e Islas. Jujuy está en el Litoral.",
+                    "b) NOA, NEA, Cuyo, Región Pampeana, Patagonia y Antártida/Islas. Jujuy está en el NOA.",
+                    "c) Puna, Valles, Yungas, Quebrada, Chaco y Pampas. Jujuy está en Cuyo.",
+                    "d) Norte, Centro, Sur, Este, Oeste y Meseta. Jujuy está en la Región Pampeana."
+                ],
+                correct: 1,
+                hint: "Recordá la división clásica del mapa escolar; Jujuy está en el extremo noroeste del país.",
+                explanation: "La clasificación escolar tradicional divide al país en NOA, NEA, Cuyo, Pampeana, Patagonia y Antártida e Islas. Jujuy integra el NOA."
+            },
+            {
+                number: 3,
+                category: "Ecorregiones",
+                color: "#F59E0B", // Amber
+                question: "¿Qué son las ecorregiones y qué ecorregiones destacadas se encuentran en la provincia de Jujuy?",
+                options: [
+                    "a) Son zonas exclusivas de producción agrícola; en Jujuy destacan la Pampa y el Espinal.",
+                    "b) Son divisiones climáticas de temperatura; en Jujuy solo existe la Estepa Patagónica.",
+                    "c) Son áreas delimitadas por biomas, flora, fauna y clima; en Jujuy destacan la Puna, Montes de Sierras y Bolsones, y Yungas.",
+                    "d) Son provincias geológicas sin vegetación; en Jujuy destacan el Delta y la Selva Misionera."
+                ],
+                correct: 2,
+                hint: "Relacioná este concepto con la vegetación: abarca desde el altiplano seco hasta las selvas nubladas.",
+                explanation: "Las ecorregiones consideran la biodiversidad y el ambiente. En Jujuy coexisten ambientes de altura (Puna) y selvas de montaña (Yungas)."
+            },
+            {
+                number: 4,
+                category: "Constitución y Regiones",
+                color: "#10B981", // Emerald
+                question: "¿Qué establece el Artículo 124 de la Constitución Nacional respecto a la regionalización?",
+                options: [
+                    "a) Prohíbe a las provincias realizar acuerdos económicos entre sí.",
+                    "b) Permite a las provincias crear regiones para el desarrollo socioeconómico y coordinar infraestructura.",
+                    "c) Obliga a fusionar las provincias más pequeñas en una sola región política.",
+                    "d) Elimina las fronteras provinciales para crear un solo gobierno central."
+                ],
+                correct: 1,
+                hint: "Es la herramienta legal que permite a las provincias unirse para buscar obras y financiamiento conjunto.",
+                explanation: "Permite la formación de bloques regionales (como el Norte Grande) para el desarrollo y la infraestructura común."
+            },
+            {
+                number: 5,
+                category: "Relieve de Jujuy",
+                color: "#06B6D4", // Cyan
+                question: "¿Cuáles son las unidades morfostructurales del relieve presentes en Jujuy?",
+                options: [
+                    "a) La Pampa Húmeda, la Meseta Misionera y la Patagonia Extraandina.",
+                    "b) La Precordillera, el Sistema de Tandilia y la Llanura Chaqueña.",
+                    "c) La Puna, la Cordillera Oriental y las Sierras Subandinas.",
+                    "d) La Cordillera Principal, las Sierras Pampeanas y el Delta del Paraná."
+                ],
+                correct: 2,
+                hint: "Tené en cuenta la forma del terreno jujeño: la meseta altísima, los cerros con quebradas y las sierras con vegetación.",
+                explanation: "En Jujuy se combinan el altiplano (Puna), los valles/quebradas (Cordillera Oriental) y las sierras verdes (Sierras Subandinas)."
+            },
+            {
+                number: 6,
+                category: "Puntos Extremos",
+                color: "#3B82F6", // Blue
+                question: "¿Dónde se sitúa el punto extremo norte del territorio argentino?",
+                options: [
+                    "a) En Puerto Iguazú, provincia de Misiones.",
+                    "b) En La Quiaca urbana, a orillas del Río La Quiaca.",
+                    "c) En la confluencia de los ríos Grande de San Juan y Mojinete, provincia de Jujuy.",
+                    "d) En Bernardo de Irigoyen, provincia de Misiones."
+                ],
+                correct: 2,
+                hint: "Se encuentra en el límite septentrional absoluto de la Argentina, en territorio jujeño.",
+                explanation: "El punto extremo norte exacto es la confluencia de los ríos Grande de San Juan y Mojinete en Jujuy (21°46' S, 66°13' O)."
+            },
+            {
+                number: 7,
+                category: "Relieve Nacional",
+                color: "#6366F1", // Indigo
+                question: "¿En qué consiste la disimetría del relieve argentino entre el oeste y el este?",
+                options: [
+                    "a) En el oeste hay llanuras sedimentarias y en el este altas cadenas montañosas.",
+                    "b) En el oeste se ubican las altas montañas y en el centro/este las extensas llanuras.",
+                    "c) En que todo el territorio argentino tiene una altitud uniforme sin elevaciones.",
+                    "d) En que el este es árido y desértico mientras que el oeste es completamente llano y húmedo."
+                ],
+                correct: 1,
+                hint: "Imaginá el perfil del mapa: montañoso al límite con Chile y bajo hacia el Atlántico.",
+                explanation: "Existe un contraste marcado entre las elevadas cordilleras del oeste y las planicies sedimentarias hacia el este."
+            },
+            {
+                number: 8,
+                category: "Problemas Ambientales",
+                color: "#8B5CF6", // Violet
+                question: "¿Cuáles son los principales problemas ambientales que afectan al NOA y la Puna?",
+                options: [
+                    "a) La contaminación por derrames petroleros marinos y el deshielo de glaciares polares.",
+                    "b) La deforestación/desmonte en Chaco Seco-Yungas y la desertificación/erosión por sobrepastoreo en la Puna.",
+                    "c) La saturación de residuos plásticos oceánicos y la lluvia ácida en zonas industriales.",
+                    "d) La falta total de agua dulce por inexistencia de ríos o cuencas en la región."
+                ],
+                correct: 1,
+                hint: "Pensá en el impacto de la tala de árboles en las zonas cálidas y el desgaste del suelo en el altiplano.",
+                explanation: "Destacan el avance agrícola sobre bosques/selvas nativas y el desgaste del suelo en el altiplano árido."
+            },
+            {
+                number: 9,
+                category: "Población",
+                color: "#EC4899", // Pink
+                question: "¿Cómo se caracteriza la distribución de la población en Argentina?",
+                options: [
+                    "a) Está distribuida de forma totalmente uniforme por todas las provincias.",
+                    "b) Más del 80% de la población habita en áreas rurales dedicadas al campo.",
+                    "c) Es extremadamente desigual, con más del 89% en áreas urbanas y gran concentración en el AMBA.",
+                    "d) La mayor parte de la población vive en la Puna y en las zonas cordilleranas."
+                ],
+                correct: 2,
+                hint: "La inmensa mayoría de la gente vive en grandes centros urbanos y ciudades.",
+                explanation: "La población argentina es predominantemente urbana (más del 89%), con una altísima concentración en el Área Metropolitana de Buenos Aires."
+            },
+            {
+                number: 10,
+                category: "Economía de Jujuy",
+                color: "#F43F5E", // Rose
+                question: "¿Cuáles son las actividades económicas estratégicas de Jujuy y el NOA?",
+                options: [
+                    "a) La pesca marítima de alta mar y la industria naval pesada.",
+                    "b) La minería (litio), la agroindustria (azúcar, tabaco, cítricos) y el turismo.",
+                    "c) La producción exclusiva de trigo y la ganadería ovina intensiva.",
+                    "d) La fabricación de automóviles importados y la explotación petrolera offshore."
+                ],
+                correct: 1,
+                hint: "Pensá en los salares blancos, los ingenios azucareros y la Quebrada de Humahuaca.",
+                explanation: "La economía jujeña se destaca por la minería de litio en los salares, cultivos agroindustriales en los valles y el turismo en la Quebrada."
+            }
+        ];
+
+        const totalSections = 10;
+        const arcSize = (2 * Math.PI) / totalSections;
+        let currentRotation = 0;
+        let isSpinning = false;
+        let answeredQuestions = new Set();
+        let correctCount = 0;
+        let currentSectionIndex = null;
+
+        // --- Audio Synthesizer (Web Audio API) ---
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+        function playTickSound() {
+            try {
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(450, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(120, audioCtx.currentTime + 0.04);
+                gain.gain.setValueAtTime(0.12, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.04);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.04);
+            } catch(e){}
+        }
+
+        function playSuccessAudio() {
+            try {
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+                const now = audioCtx.currentTime;
+
+                const notes = [523.25, 659.25, 783.99, 1046.50];
+                notes.forEach((freq, idx) => {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(freq, now + idx * 0.08);
+                    gain.gain.setValueAtTime(0, now + idx * 0.08);
+                    gain.gain.linearRampToValueAtTime(0.2, now + idx * 0.08 + 0.02);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.08 + 0.35);
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    osc.start(now + idx * 0.08);
+                    osc.stop(now + idx * 0.08 + 0.35);
+                });
+            } catch(e){}
+        }
+
+        function playDisappointmentAudio() {
+            try {
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+                const now = audioCtx.currentTime;
+
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                const filter = audioCtx.createBiquadFilter();
+
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(165, now); 
+                osc.frequency.exponentialRampToValueAtTime(105, now + 0.8);
+
+                filter.type = 'lowpass';
+                filter.frequency.setValueAtTime(550, now);
+                filter.frequency.exponentialRampToValueAtTime(200, now + 0.8);
+
+                gain.gain.setValueAtTime(0, now);
+                gain.gain.linearRampToValueAtTime(0.25, now + 0.08);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.85);
+
+                osc.connect(filter);
+                filter.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                osc.start(now);
+                osc.stop(now + 0.85);
+            } catch(e){}
+        }
+
+        // --- Canvas Sizing & Rendering ---
+        const canvas = document.getElementById('wheelCanvas');
+        const ctx = canvas.getContext('2d');
+
+        function resizeCanvas() {
+            const container = canvas.parentElement;
+            const size = container.clientWidth || 340;
+            const dpr = window.devicePixelRatio || 1;
+
+            canvas.width = size * dpr;
+            canvas.height = size * dpr;
+            ctx.scale(dpr, dpr);
+            drawWheel();
+        }
+
+        function drawWheel() {
+            const container = canvas.parentElement;
+            const size = container.clientWidth || 340;
+            const center = size / 2;
+            const outerRadius = center - 6;
+            const innerRadius = 32;
+
+            ctx.clearRect(0, 0, size, size);
+
+            for (let i = 0; i < totalSections; i++) {
+                const angle = currentRotation + i * arcSize;
+                const isAnswered = answeredQuestions.has(i);
+
+                // Draw sector arc
+                ctx.beginPath();
+                ctx.arc(center, center, outerRadius, angle, angle + arcSize);
+                ctx.arc(center, center, innerRadius, angle + arcSize, angle, true);
+                ctx.closePath();
+
+                // Color of sector
+                if (isAnswered) {
+                    ctx.fillStyle = '#334155'; // Dark grey for answered
+                } else {
+                    ctx.fillStyle = questions[i].color;
+                }
+                ctx.fill();
+
+                ctx.lineWidth = 2;
+                ctx.strokeStyle = '#ffffff';
+                ctx.stroke();
+
+                // Draw text label
+                ctx.save();
+                ctx.translate(center, center);
+                ctx.rotate(angle + arcSize / 2);
+
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                
+                if (isAnswered) {
+                    ctx.fillStyle = '#94a3b8';
+                    ctx.font = 'bold 14px Poppins, sans-serif';
+                    ctx.fillText(`P${questions[i].number} ✓`, outerRadius * 0.65, 0);
+                } else {
+                    ctx.fillStyle = '#ffffff';
+                    ctx.font = 'bold 16px Poppins, sans-serif';
+                    ctx.shadowColor = 'rgba(0,0,0,0.5)';
+                    ctx.shadowBlur = 4;
+                    ctx.fillText(`P${questions[i].number}`, outerRadius * 0.68, 0);
+                }
+
+                ctx.restore();
+            }
+
+            // Outer ring border
+            ctx.beginPath();
+            ctx.arc(center, center, outerRadius, 0, 2 * Math.PI);
+            ctx.lineWidth = 4;
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+            ctx.stroke();
+
+            // Central hub
+            ctx.beginPath();
+            ctx.arc(center, center, innerRadius, 0, 2 * Math.PI);
+            ctx.fillStyle = '#ffffff';
+            ctx.fill();
+            ctx.lineWidth = 3;
+            ctx.strokeStyle = '#cbd5e1';
+            ctx.stroke();
+
+            // Center icon
+            ctx.fillStyle = '#1e293b';
+            ctx.font = 'bold 14px Poppins';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('🌵', center, center);
+        }
+
+        // --- Stats & Percentage Calculation ---
+        // CRITICAL RULE: Percentage is strictly based on ANSWERED questions so far!
+        function getAccuracyPercentage() {
+            const answeredTotal = answeredQuestions.size;
+            if (answeredTotal === 0) return 0;
+            return Math.round((correctCount / answeredTotal) * 100);
+        }
+
+        function updateStatsDisplay() {
+            const answeredTotal = answeredQuestions.size;
+            const accuracy = getAccuracyPercentage();
+            
+            document.getElementById('answeredDisplay').innerText = `${answeredTotal} / ${totalSections}`;
+            document.getElementById('accuracyDisplay').innerText = `${accuracy}%`;
+        }
+
+        // --- Spin Wheel Logic ---
+        function spinWheel() {
+            if (isSpinning) return;
+
+            const remainingIndices = [];
+            for (let i = 0; i < totalSections; i++) {
+                if (!answeredQuestions.has(i)) {
+                    remainingIndices.push(i);
+                }
+            }
+
+            if (remainingIndices.length === 0) {
+                requestRestart(true); // All completed prompt
+                return;
+            }
+
+            isSpinning = true;
+            const spinBtn = document.getElementById('spinBtn');
+            spinBtn.disabled = true;
+            spinBtn.classList.add('opacity-50', 'cursor-not-allowed');
+
+            // Select random unanswered target
+            const randomIndex = Math.floor(Math.random() * remainingIndices.length);
+            const targetIndex = remainingIndices[randomIndex];
+
+            // Target Angle math
+            const targetAngleSectorCenter = targetIndex * arcSize + (arcSize / 2);
+            let targetRotation = (3 * Math.PI / 2) - targetAngleSectorCenter;
+
+            // Extra spins
+            const extraRounds = (Math.floor(Math.random() * 3) + 5) * (2 * Math.PI);
+            
+            while (targetRotation < currentRotation) {
+                targetRotation += 2 * Math.PI;
+            }
+            const finalRotation = targetRotation + extraRounds;
+
+            const duration = 4000;
+            const startRotation = currentRotation;
+            const startTime = performance.now();
+            let lastTickSector = -1;
+
+            function animateSpin(currentTime) {
+                const elapsed = currentTime - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                
+                // Ease out cubic
+                const easeOut = 1 - Math.pow(1 - progress, 3);
+                currentRotation = startRotation + (finalRotation - startRotation) * easeOut;
+
+                // Ticks sound
+                const currentPointerSector = Math.floor(
+                    (((3 * Math.PI / 2 - currentRotation) % (2 * Math.PI) + (2 * Math.PI)) % (2 * Math.PI)) / arcSize
+                );
+                if (currentPointerSector !== lastTickSector) {
+                    playTickSound();
+                    lastTickSector = currentPointerSector;
+                }
+
+                drawWheel();
+
+                if (progress < 1) {
+                    requestAnimationFrame(animateSpin);
+                } else {
+                    isSpinning = false;
+                    currentRotation = currentRotation % (2 * Math.PI);
+                    currentSectionIndex = targetIndex;
+                    
+                    spinBtn.disabled = false;
+                    spinBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+
+                    showQuestion(targetIndex);
+                }
+            }
+
+            requestAnimationFrame(animateSpin);
+        }
+
+        // --- Question Display ---
+        function showQuestion(index) {
+            const item = questions[index];
+
+            document.getElementById('welcomeState').classList.add('hidden');
+            const activeState = document.getElementById('activeQuestionState');
+            activeState.classList.remove('hidden');
+            activeState.classList.add('flex');
+
+            const sectionBadge = document.getElementById('sectionBadge');
+            sectionBadge.innerText = `Pregunta ${item.number} • ${item.category}`;
+            sectionBadge.style.backgroundColor = item.color;
+
+            // Reset hint and explanation boxes
+            document.getElementById('hintBox').classList.add('hidden');
+            document.getElementById('hintText').innerText = item.hint;
+            document.getElementById('hintBtn').classList.remove('hidden');
+
+            document.getElementById('explanationBox').classList.add('hidden');
+            document.getElementById('explanationText').innerText = item.explanation;
+
+            document.getElementById('questionText').innerText = item.question;
+            document.getElementById('nextPrompt').innerText = "Elige la respuesta que consideres correcta.";
+
+            const container = document.getElementById('optionsContainer');
+            container.innerHTML = '';
+
+            item.options.forEach((opt, optIdx) => {
+                const btn = document.createElement('button');
+                btn.className = "option-btn w-full p-3 text-left font-medium text-slate-700 bg-slate-50 hover:bg-indigo-50 border-2 border-slate-200 hover:border-indigo-300 rounded-2xl flex items-center justify-between gap-2 text-xs md:text-sm cursor-pointer shadow-sm";
+                
+                btn.onclick = () => handleAnswerSelect(optIdx, item.correct, index);
+
+                btn.innerHTML = `
+                    <span class="option-text leading-snug">${opt}</span>
+                    <span class="status-icon font-extrabold text-sm flex-shrink-0 opacity-0 transition-opacity"></span>
+                `;
+
+                container.appendChild(btn);
+            });
+        }
+
+        function toggleHint() {
+            const hintBox = document.getElementById('hintBox');
+            hintBox.classList.toggle('hidden');
+        }
+
+        // --- Answer Processing ---
+        function handleAnswerSelect(selectedIndex, correctIndex, qIndex) {
+            const container = document.getElementById('optionsContainer');
+            const buttons = container.querySelectorAll('.option-btn');
+            const isCorrect = selectedIndex === correctIndex;
+
+            // Mark question as answered
+            answeredQuestions.add(qIndex);
+
+            if (isCorrect) {
+                correctCount++;
+                playSuccessAudio();
+                confetti({
+                    particleCount: 70,
+                    spread: 70,
+                    origin: { y: 0.7 }
+                });
+            } else {
+                playDisappointmentAudio();
+                // WRONG ANSWER: correctCount DOES NOT INCREASE, so accuracy percentage goes down/stays accurate to answered items!
+            }
+
+            // Update wheel and stats
+            drawWheel();
+            updateStatsDisplay();
+
+            // Show Explanation Box
+            document.getElementById('explanationBox').classList.remove('hidden');
+
+            // Apply Button Styling
+            buttons.forEach((btn, idx) => {
+                btn.disabled = true;
+                btn.classList.remove('hover:bg-indigo-50', 'hover:border-indigo-300', 'cursor-pointer');
+                btn.classList.add('cursor-default');
+
+                const statusIcon = btn.querySelector('.status-icon');
+
+                if (idx === selectedIndex) {
+                    if (isCorrect) {
+                        btn.className = "option-btn w-full p-3 text-left font-bold text-white bg-emerald-600 border-2 border-emerald-700 rounded-2xl flex items-center justify-between gap-2 text-xs md:text-sm shadow-md";
+                        statusIcon.innerText = "✓ Correcto";
+                        statusIcon.classList.remove('opacity-0');
+                    } else {
+                        btn.className = "option-btn w-full p-3 text-left font-bold text-white bg-rose-600 border-2 border-rose-700 rounded-2xl flex items-center justify-between gap-2 text-xs md:text-sm shadow-md";
+                        statusIcon.innerText = "✗ Incorrecto";
+                        statusIcon.classList.remove('opacity-0');
+                    }
+                } else if (idx === correctIndex && !isCorrect) {
+                    btn.className = "option-btn w-full p-3 text-left font-bold text-white bg-emerald-600 border-2 border-emerald-700 rounded-2xl flex items-center justify-between gap-2 text-xs md:text-sm shadow-md";
+                    statusIcon.innerText = "✓ Correcta";
+                    statusIcon.classList.remove('opacity-0');
+                } else {
+                    btn.className = "option-btn w-full p-3 text-left font-medium text-slate-400 bg-slate-100 border-2 border-slate-200 rounded-2xl flex items-center justify-between gap-2 text-xs md:text-sm opacity-60";
+                }
+            });
+
+            const prompt = document.getElementById('nextPrompt');
+            if (answeredQuestions.size >= totalSections) {
+                prompt.innerHTML = "<span class='text-indigo-600 font-bold'>¡Has respondido todas las preguntas! Presiona 'Girar Ruleta' o 'Reiniciar' para ver tu informe final.</span>";
+            } else if (isCorrect) {
+                prompt.innerHTML = "<span class='text-emerald-600 font-bold'>¡Respuesta Correcta! Gira la ruleta para la siguiente pregunta.</span>";
+            } else {
+                prompt.innerHTML = "<span class='text-rose-600 font-bold'>¡Respuesta Incorrecta! El porcentaje se calcula sólo en base a tus aciertos.</span>";
+            }
+        }
+
+        // --- Restart & Performance Feedback Rules ---
+        function getFeedbackMessage(pct, totalAnswered) {
+            if (totalAnswered === 0) {
+                return {
+                    icon: "⚠️",
+                    title: "Sin Respuestas",
+                    msg: "¡No has respondido ninguna pregunta todavía! Intenta responder al menos una antes de reiniciar."
+                };
+            }
+
+            if (pct === 100) {
+                return {
+                    icon: "🏆",
+                    title: "¡Desempeño Perfecto!",
+                    msg: "¡Excelente trabajo! Demostraste un dominio total de la geografía de Jujuy y Argentina. ¡Felicitaciones!"
+                };
+            } else if (pct >= 70 && pct < 100) {
+                return {
+                    icon: "🌟",
+                    title: "¡Muy Buen Trabajo!",
+                    msg: "¡Muy buen desempeño! Tenés sólidos conocimientos, aunque podés repasar un par de detalles."
+                };
+            } else if (pct >= 50 && pct < 70) {
+                return {
+                    icon: "👍",
+                    title: "¡Aprobado!",
+                    msg: "¡Buen intento! Aprobaste, pero te vendría bien repasar los conceptos clave."
+                };
+            } else {
+                return {
+                    icon: "📚",
+                    title: "¡A Seguir Repasando!",
+                    msg: "¡Te falta prestar atención! Repasá el material sobre la geografía de Jujuy y Argentina e intentalo de nuevo."
+                };
+            }
+        }
+
+        function requestRestart(isCompleted = false) {
+            const answeredTotal = answeredQuestions.size;
+            const pct = getAccuracyPercentage();
+            const feedback = getFeedbackMessage(pct, answeredTotal);
+
+            document.getElementById('modalIcon').innerText = feedback.icon;
+            document.getElementById('modalTitle').innerText = feedback.title;
+            document.getElementById('modalPercentage').innerText = `${pct}%`;
+            document.getElementById('modalDetail').innerText = `(${correctCount} aciertos de ${answeredTotal} respondidas)`;
+            document.getElementById('modalMessage').innerText = feedback.msg;
+
+            const modalCancelBtn = document.getElementById('modalCancelBtn');
+            if (isCompleted && answeredTotal === totalSections) {
+                modalCancelBtn.classList.add('hidden'); // Force restart if game over
+            } else {
+                modalCancelBtn.classList.remove('hidden');
+            }
+
+            document.getElementById('restartModal').classList.remove('hidden');
+        }
+
+        function closeRestartModal() {
+            document.getElementById('restartModal').classList.add('hidden');
+        }
+
+        function confirmRestart() {
+            closeRestartModal();
+            isSpinning = false;
+
+            const spinBtn = document.getElementById('spinBtn');
+            if (spinBtn) {
+                spinBtn.disabled = false;
+                spinBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+            }
+
+            answeredQuestions.clear();
+            correctCount = 0;
+            updateStatsDisplay();
+            drawWheel();
+
+            const activeState = document.getElementById('activeQuestionState');
+            activeState.classList.add('hidden');
+            activeState.classList.remove('flex');
+            document.getElementById('welcomeState').classList.remove('hidden');
+        }
+
+        // --- Window Init ---
+        window.addEventListener('resize', resizeCanvas);
+        window.addEventListener('load', () => {
+            resizeCanvas();
+            updateStatsDisplay();
+        });
+    </script>
+</body>
+</html>
